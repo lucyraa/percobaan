@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connect Wallet - CryptoPet</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --glow-color: hsl(270, 95%, 65%);
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            color: #f0f0f0;
+            background-color: #050210; /* Latar belakang yang sangat gelap */
+            overflow: hidden;
+            margin: 0;
+        }
+
+        /* Canvas untuk partikel interaktif */
+        #particle-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* Kontainer untuk memposisikan kartu di tengah */
+        .card-container {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        
+        /* Kartu dengan efek kaca dan pencahayaan interaktif */
+        .interactive-card {
+            background: rgba(15, 8, 35, 0.5);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1.5rem;
+            padding: 2.5rem;
+            text-align: center;
+            width: 100%;
+            max-width: 26rem;
+            box-shadow: 0 0 80px rgba(0,0,0,0.4);
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        /* Efek cahaya pada kartu yang mengikuti cursor */
+        .interactive-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 1.5rem;
+            background: radial-gradient(
+                250px circle at var(--mouse-x) var(--mouse-y),
+                rgba(171, 86, 226, 0.2),
+                transparent 80%
+            );
+            z-index: -1;
+            transition: background 0.1s ease;
+        }
+        
+        /* Tombol dengan efek glow */
+        .connect-button {
+            background: var(--glow-color);
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            box-shadow: 0 0 20px rgba(171, 86, 226, 0.6);
+            transition: all 0.3s ease;
+        }
+        
+        .connect-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(171, 86, 226, 0.8), 0 0 50px rgba(171, 86, 226, 0.5);
+        }
+
+    </style>
+</head>
+<body>
+
+    <canvas id="particle-canvas"></canvas>
+    
+    <div class="card-container">
+        <div id="card" class="interactive-card">
+            <h1 class="text-4xl font-bold text-white mb-2" style="text-shadow: 0 0 10px var(--glow-color);">
+                CryptoPet
+            </h1>
+            <p class="text-md text-gray-300 mb-8">
+                The future of digital companionship is here.
+            </p>
+            <button id="connectBtn" onclick="handleConnection()" class="connect-button text-white w-full">
+                Connect to Plug Wallet
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('particle-canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let particlesArray;
+
+        // Posisi mouse
+        const mouse = {
+            x: null,
+            y: null,
+            radius: 100 // Area interaksi di sekitar cursor
+        };
+
+        window.addEventListener('mousemove', (event) => {
+            mouse.x = event.x;
+            mouse.y = event.y;
+        });
+        
+        // --- Interaktivitas Kartu ---
+        const card = document.getElementById('card');
+        card.addEventListener('mousemove', (e) => {
+            const rect = card.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            card.style.setProperty('--mouse-x', `${x}px`);
+            card.style.setProperty('--mouse-y', `${y}px`);
+        });
+
+        // Membuat Partikel
+        class Particle {
+            constructor(x, y, directionX, directionY, size, color) {
+                this.x = x;
+                this.y = y;
+                this.directionX = directionX;
+                this.directionY = directionY;
+                this.size = size;
+                this.color = color;
+                this.baseX = this.x; // Posisi awal
+                this.baseY = this.y;
+                this.density = (Math.random() * 30) + 1; // Seberapa cepat partikel kembali
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2, false);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+            }
+            update() {
+                let dx = mouse.x - this.x;
+                let dy = mouse.y - this.y;
+                let distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < mouse.radius) {
+                    // Partikel bergerak menjauh dari cursor
+                    this.x -= dx / 15;
+                    this.y -= dy / 15;
+                } else {
+                    // Partikel kembali ke posisi semula
+                    if (this.x !== this.baseX) {
+                        let dxHome = this.x - this.baseX;
+                        this.x -= dxHome / this.density;
+                    }
+                    if (this.y !== this.baseY) {
+                        let dyHome = this.y - this.baseY;
+                        this.y -= dyHome / this.density;
+                    }
+                }
+                this.draw();
+            }
+        }
+
+        // Membuat array partikel
+        function init() {
+            particlesArray = [];
+            let numberOfParticles = (canvas.height * canvas.width) / 9000;
+            for (let i = 0; i < numberOfParticles; i++) {
+                let size = (Math.random() * 2) + 1;
+                let x = (Math.random() * ((innerWidth - size * 2) - (size * 2)) + size * 2);
+                let y = (Math.random() * ((innerHeight - size * 2) - (size * 2)) + size * 2);
+                let directionX = (Math.random() * .2) - .1;
+                let directionY = (Math.random() * .2) - .1;
+                let color = 'rgba(171, 86, 226, 0.7)';
+                particlesArray.push(new Particle(x, y, directionX, directionY, size, color));
+            }
+        }
+
+        // Loop animasi
+        function animate() {
+            requestAnimationFrame(animate);
+            ctx.clearRect(0, 0, innerWidth, innerHeight);
+
+            for (let i = 0; i < particlesArray.length; i++) {
+                particlesArray[i].update();
+            }
+        }
+        
+        // Event listener untuk resize window
+        window.addEventListener('resize', () => {
+            canvas.width = innerWidth;
+            canvas.height = innerHeight;
+            init();
+        });
+
+        // Inisialisasi
+        init();
+        animate();
+    </script>
+    
+    <script src="coin.js"></script>
+</body>
+</html>
